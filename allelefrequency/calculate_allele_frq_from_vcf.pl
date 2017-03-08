@@ -11,6 +11,7 @@ my ($vcf,
 	$out_dir,
   $out_file,
 	$tabix,
+  $tools_dir,
 	$vcftools_dir,
 	$vcftools,
 	$vcf_subset,
@@ -27,6 +28,7 @@ my ($vcf,
 	'region=s'				=> \$region,
 	'out_dir:s'				=> \$out_dir,
 	'tabix=s'				=> \$tabix,
+  'tools_dir=s' => \$tools_dir,
 	'vcftools_dir=s'		=> \$vcftools_dir,
   'out_file:s'  => \$out_file,
 	'no_tabix!'				=> \$no_tabix,
@@ -51,8 +53,8 @@ if($no_tabix){
 	 	
 #$tabix = "/nfs/1000g-work/G1K/work/bin/tabix/tabix" if (!$tabix);
 #$vcftools_dir = "/nfs/1000g-work/G1K/work/bin/vcftools" if (!$vcftools_dir);
-$tabix = "/localsw/bin/htslib-1.3.1/tabix";#"/nfs/public/rw/ensembl/tools/tabix/tabix";
-$vcftools_dir = "/localsw/tools/vcftools/" if (!$vcftools_dir); #"/nfs/public/rw/ensembl/tools/vcftools"
+$tabix = "$tools_dir/linuxbrew/bin/tabix";#"/nfs/public/rw/ensembl/tools/tabix/tabix";
+$vcftools_dir = "$tools_dir/1000G-Tools/vcftools/" if (!$vcftools_dir); #"/nfs/public/rw/ensembl/tools/vcftools"
 
 
 $vcftools = "perl " . $vcftools_dir . "/bin/vcftools";

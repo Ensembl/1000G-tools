@@ -58,6 +58,7 @@ GetOptions('population=s' => \@populations,
             'max_maf=s' => \$max_maf,
             'min_maf=s' => \$min_maf,
             'base_format=s' => \$base_format,
+            'tools_dir=s'   => \$tools_dir,
             );
 
 if ($help) {
@@ -73,7 +74,7 @@ my %base_codes = $base_format =~ /num/i ? ('A' => 1,   'C' => 2,   'G' => 3,   '
 
 my $is_compressed = $vcf =~ /\.b?gz(ip)?$/;
 if ($is_compressed) {
-  $tabix ||= "/localsw/bin/htslib-1.3.1/tabix";
+  $tabix ||= "$tools_dir/linuxbrew/bin/tabix";
 }
 die("remote vcf file must be compressed by bgzip") if (!$is_compressed && $vcf =~ /ftp:\/\//);
 
