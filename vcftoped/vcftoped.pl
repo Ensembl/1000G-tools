@@ -38,6 +38,7 @@ my $ftp_host;
 my $vcf;
 my $region;
 my $tabix;
+my $tools_dir;
 my $output_ped;
 my $output_info;
 my $output_dir;
