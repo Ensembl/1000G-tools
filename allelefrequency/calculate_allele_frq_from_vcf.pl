@@ -54,7 +54,7 @@ if($no_tabix){
 #$tabix = "/nfs/1000g-work/G1K/work/bin/tabix/tabix" if (!$tabix);
 #$vcftools_dir = "/nfs/1000g-work/G1K/work/bin/vcftools" if (!$vcftools_dir);
 $tabix = "$tools_dir/linuxbrew/bin/tabix";#"/nfs/public/rw/ensembl/tools/tabix/tabix";
-$vcftools_dir = "$tools_dir/1000G-Tools/vcftools/" if (!$vcftools_dir); #"/nfs/public/rw/ensembl/tools/vcftools"
+$vcftools_dir = "$tools_dir/1000G-tools/vcftools/" if (!$vcftools_dir); #"/nfs/public/rw/ensembl/tools/vcftools"
 
 
 $vcftools = "perl " . $vcftools_dir . "/bin/vcftools";
