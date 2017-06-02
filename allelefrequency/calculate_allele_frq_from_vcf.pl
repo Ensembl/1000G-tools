@@ -9,14 +9,16 @@ my ($vcf,
 	$user_input_pop_string,
 	$region,
 	$out_dir,
+  $out_file,
 	$tabix,
+  $tools_dir,
+	$vcftools_dir,
+	$vcftools,
+	$vcf_subset,
+	$vcf_fill_an_ac,
 	$no_tabix,
 	$help,
-  %sample_pop_hash,#keys are sample IDs and values the population for that sample
-  %pops,#keys of this hash are the populations in the sample panel file
-  @selected_pops,#processed list of selected pops
-  @pop_cols,#record columns belonging to the selected populations
-  $vcf_cmd,#command to retrieve VCF
+	%result_hash,
 );
 	
 &GetOptions( 
@@ -26,6 +28,9 @@ my ($vcf,
 	'region=s'				=> \$region,
 	'out_dir:s'				=> \$out_dir,
 	'tabix=s'				=> \$tabix,
+  'tools_dir=s' => \$tools_dir,
+	'vcftools_dir=s'		=> \$vcftools_dir,
+  'out_file:s'  => \$out_file,
 	'no_tabix!'				=> \$no_tabix,
 	'help!'					=> \$help,
 );
@@ -34,169 +39,295 @@ if ($help) {
 	 exec('perldoc', $0);
 }
 
-check_and_process_input();
+if (!$region && !$no_tabix) {
+	die("Please specify chromosome region. If the input VCF contains small number of sites, please use -no_tabix if you don't want to specify chromosome region\n");
+}	 
 
-#input and output files
-open(VCF, $vcf_cmd." |") or die "Failed to open $vcf_cmd $!\n";
-my $outfile = "$out_dir/afc.".($region =~ s/:/./r).".proc$$.tsv";
-open(OUT, ">", $outfile) or die "Cannot open $outfile.\n";
-
-#print header
-print OUT "#CHROM\tPOS\tID\tREF\tALT\t";
-foreach my $sp (@selected_pops){
-  print OUT $sp."_TOTAL_CNT\t".$sp."_ALT_CNT\t".$sp."_FRQ\t";
-}
-print OUT "ALL_TOTAL_CNT\tALL_ALT_CNT\tALL_FRQ\n";
-
-#process VCF
-my $line;
-LINE: while(<VCF>){
-  chomp;
-  $line = $_;
-  #ignore general header lines
-  next LINE if($line =~ /^##/);
-  #process column header line to note which samples are in which columns
-  if($line =~ /^#[Cc]/){
-    my @cols = split "\t", $line;
-    #for each sample in header
-    SAMPLE: for(my $i=9;$i<scalar(@cols);$i++){
-      for(my $j=0;$j<scalar(@selected_pops);$j++){
-        if($selected_pops[$j] eq $sample_pop_hash{$cols[$i]}){
-          push @{$pop_cols[$j]}, $i;
-          next SAMPLE;
-        }
-      }
-    }
-  }#process lines from VCF body
-  else{
-    my @body_fields = split "\t", $line;
-    #print chr, pos, ID, ref and alt cols 
-    for(my $i=0;$i<5;$i++){
-      print OUT $body_fields[$i]."\t";
-    }
-    my $num_alleles = scalar(split ",", $body_fields[4]) + 1;
-    #keep score for all pops combined
-    my @all_allele_cnt = ();
-    #start allele counts at 0
-    for(my $a=0;$a<$num_alleles;$a++){
-      $all_allele_cnt[$a] = 0;
-    } 
-    #process each population    
-    for(my $i=0;$i<scalar(@selected_pops);$i++){
-      my @pop_allele_cnt = ();
-      #start pop specific allele counts at 0
-      for(my $a=0;$a<$num_alleles;$a++){
-        $pop_allele_cnt[$a] = 0;
-      }
-      #process the sample genotypes for this population
-      foreach my $sample_index(@{$pop_cols[$i]}){
-        my @alleles = split /[|\/]/, $body_fields[$sample_index];
-        foreach my $allele (@alleles){
-          $pop_allele_cnt[$allele]++;
-        }
-      }
-      #handle output for the population, including adding to total counts
-      my $pop_total = 0;
-      for(my $a=0;$a<$num_alleles;$a++){
-        $all_allele_cnt[$a] += $pop_allele_cnt[$a];
-        $pop_total += $pop_allele_cnt[$a];
-      }
-      print OUT $pop_total."\t";
-      print OUT join(',', @pop_allele_cnt[1..($num_alleles-1)])."\t";
-      my @alt_freqs = ();
-      foreach my $alt_cnt (@pop_allele_cnt[1..($num_alleles-1)]){
-         push @alt_freqs, (sprintf "%.2f", $alt_cnt/$pop_total);
-      }
-      print OUT join(',', @alt_freqs)."\t";
-    }
-    #output for combined populations
-    my $all_total = 0;
-    for(my $a=0;$a<$num_alleles;$a++){
-      $all_total += $all_allele_cnt[$a];
-    }
-    print OUT $all_total."\t";
-    print OUT join(',', @all_allele_cnt[1..($num_alleles-1)])."\t";
-    my @all_alt_freqs = ();
-    foreach my $all_alt_cnt (@all_allele_cnt[1..($num_alleles-1)]){
-      push @all_alt_freqs, (sprintf "%.2f", $all_alt_cnt/$all_total);
-    }
-    print OUT join(',', @all_alt_freqs)."\t";
-    print OUT "\n";
+if($no_tabix){
+  unless(-e $vcf){
+    die($vcf." must exist if tabix is not being run");
   }
 }
 
 
-######
-#SUBS
-######
-sub check_and_process_input{
-  #check input options
-  if($tabix and ! -x $tabix){
-    die "The specified tabix, $tabix, is not an executable.\n";
-  }
-  #default to this installation if not specified at the command line
-  $tabix = "/nfs/1000g-work/G1K/work/bin/tabix/tabix" if (!$tabix);
+	 	
+#$tabix = "/nfs/1000g-work/G1K/work/bin/tabix/tabix" if (!$tabix);
+#$vcftools_dir = "/nfs/1000g-work/G1K/work/bin/vcftools" if (!$vcftools_dir);
+$tabix = "$tools_dir/linuxbrew/bin/tabix";#"/nfs/public/rw/ensembl/tools/tabix/tabix";
+$vcftools_dir = "$tools_dir/1000G-tools/vcftools/" if (!$vcftools_dir); #"/nfs/public/rw/ensembl/tools/vcftools"
 
-  if(! -e $vcf){
-    die "VCF file $vcf does not exist.\n";
-  }
-  if(! -e $sample_panel){
-    die "Sample panel $sample_panel does not exist.\n";
-  }
-  if($out_dir and ! -d $out_dir){
-    die "The directory $out_dir does not exist.\n";
-  }
 
-  my $panel_hash = parse_sample_panel($sample_panel);
+$vcftools = "perl " . $vcftools_dir . "/bin/vcftools";
+$vcf_subset = "perl " . $vcftools_dir . "/perl/vcf-subset";
+$vcf_fill_an_ac = "perl " . $vcftools_dir . "/perl/fill-an-ac";
 
-  #if user specified populations, parse and check that they exist in the panel
-  if($user_input_pop_string){
-    @selected_pops = split ',', $user_input_pop_string;
-    if($selected_pops[0] eq "ALL"){
-      @selected_pops = keys(%pops);
-    }
-    else{
-      foreach my $p (@selected_pops){
-        die "Population $p is not listed in $sample_panel.\n" if(! exists $pops{$p});
-      }
-    }
-  }
-  else{
-    #assume user wants all populations
-    @selected_pops = keys(%pops);
-  }
+my $panel_hash = parse_sample_panel($sample_panel);
 
-  if($region){
-    die "Region should be in format chr:start-end, i.e. 1:1-1000.\n" if($region !~ /\s*:[0-9]*-[0-9]*$/);
-  }
-
-  #put together command to get the VCF
-  my $cmd;
-  if($no_tabix){
-    $vcf_cmd = "cat $vcf";
-  }
-  elsif($region){
-    $vcf_cmd = "$tabix -h $vcf $region";
-  }
-  else{
-    $vcf_cmd = "zcat $vcf";
-  }
+if ( (defined $user_input_pop_string && $user_input_pop_string =~ /ALL/i) || !$user_input_pop_string) {
+	foreach my $pop (keys %$panel_hash ) {
+		process(join(",", @{$panel_hash->{$pop}}), $pop);
+	}	
+	print_hash(\%result_hash, "all");
 }
+
+else {
+	my @user_input_pops = split(/,/, $user_input_pop_string);
+	foreach my $pop (keys %$panel_hash ) {
+		foreach my $user_pop (@user_input_pops) {
+			$user_pop =~ s/^\s+|\s+$//;
+			if ($pop =~ /$user_pop/i) {
+				process(join(",", @{$panel_hash->{$pop}}), $user_pop);
+			}
+		}	
+	}	
+	print_hash(\%result_hash, $user_input_pop_string);  
+}	
+
+
+####################
+###### SUBS ########
+####################
+sub process {
+	my ( $samples_string, $population )= @_;
+	
+	my $cmd;
+	if ($no_tabix) {
+		$cmd = "$vcf_subset -c $samples_string $vcf | $vcf_fill_an_ac | cut -f1-8";
+	}
+	else {
+		$cmd = "$tabix -f -h $vcf $region | $vcf_subset -c $samples_string | $vcf_fill_an_ac | cut -f1-8";
+	}
+	open(CMD, $cmd." | ") or die("Failed to open ".$cmd." $!");
+
+	while(<CMD>){
+	  next if(/\#/);
+	  chomp;
+	  
+	  my @values = split /\t/, $_;
+	  my @info = split /\;/, $values[7];
+	  
+	  my $ac;
+	  my $an; 
+	  my $af = 0;
+
+	  my $alt_alleles = $values[4];
+	  
+	  foreach my $info(@info){
+	    if($info =~ /^AC/){
+	      my ($tag, $num) = split /\=/, $info;
+	      $ac = $num;
+	    }
+	    if($info =~ /^AN/){
+	      my ($tag, $num) = split /\=/, $info;
+	      $an = $num;
+	    }
+	  }
+	  
+	  if(!defined($ac)){
+	    die("Failed to find ac from ".join("\t", $values[7]));
+	  }
+	  if(!$an){
+	    die("Failed to find an from ".join("\t", $values[7]));
+	  }
+	  
+	  #multiple alleles
+	  if($ac =~ m/,/){
+	    #$cmd can return multiple alleles in varying order T,A or A,T, for example
+	    #need to account for this for combining populations in output
+	    
+	    #first, have we seen this site already?
+	    my $site_and_ref = join ("\t", $values[0], $values[1],$values[2],$values[3]);
+	    #if we have seen this before
+	    if(/^$site_and_ref.*/ ~~ %result_hash){
+		#make sure we have only one match
+		my @site_match = grep /^$site_and_ref.*/, keys %result_hash;
+		die("A multi-allelic site can't be distinguished from another site.\n") if scalar(@site_match) > 1;
+		#get results hash alt allele string to use instead
+		$alt_alleles = (split /\t/, $site_match[0])[4];
+		#check alleles are the same
+		my @result_alt_alleles = split /,/, $alt_alleles;
+		my @curr_alt_alleles = split /,/, $values[4];
+		@result_alt_alleles = sort { $a cmp $b } @result_alt_alleles;
+		@curr_alt_alleles = sort { $a cmp $b } @curr_alt_alleles;
+		die ("Different alt alleles.\n") if (!(@result_alt_alleles ~~ @curr_alt_alleles));
+		# return to original orders
+		@result_alt_alleles = split /,/, $alt_alleles;
+		@curr_alt_alleles = split /,/, $values[4];
+		my @ordered_acs;
+		my @acs = split /,/, $ac;	
+		#put new allele counts into same order as the result hash entry
+		ALLELE: for (my $i = 0; $i < scalar(@result_alt_alleles); $i++){
+		  for(my $j =0; $j < scalar(@curr_alt_alleles); $j++){
+			if($result_alt_alleles[$i] eq $curr_alt_alleles[$j]){
+			  $ordered_acs[$i] = $acs[$j];
+			  next ALLELE;
+			}	
+		  }
+		}
+		#for each allele, now calc the frequency and put the output strings together
+		my @afs;
+		foreach my $ord_ac (@ordered_acs){
+		  my $allele_freq = sprintf "%.2f", $ord_ac/$an;
+		  push @afs, $allele_freq;
+		}
+		$af = join(",",@afs);
+		$ac = join(",",@ordered_acs);
+	    }
+	    else{
+		#multiple alleles but first time we've seen this site
+		#just need to calc afs
+		my @acs = split /,/, $ac;
+		my @afs;
+		foreach my $ind_ac (@acs){
+		  my $allele_freq = sprintf "%.2f", $ind_ac/$an;
+		  push @afs, $allele_freq;
+		}		
+		$af = join(",",@afs);
+	    }
+	  }
+	  else{
+		#not multiple alleles, so just do calc of AF
+	  	$af = sprintf "%.2f", $ac/$an if($ac);
+	  }	  
+	  my $site_info = join ("\t", $values[0], $values[1],$values[2],$values[3], $alt_alleles);
+	  my $site_stats = join ("\t", $an, $ac, $af);
+	  
+	  $result_hash{$site_info}{$population} = $site_stats;		
+	}
+	return 1;
+}
+
 
 sub parse_sample_panel {
-  my ($panel_file) = @_;
+	my ($panel_file) = @_;
+	my %pop_sample_hash;
+	
+	my $fh;
+	open($fh, "<", $panel_file) or die "Can't open '$panel_file': $!";
+	while (<$fh>) {
+		chomp;
+		my $sample_line = $_;
+		my ($sample, $pop_in_panel, $sup_pop, $platform) = split(/\t/, $sample_line);
+		push @{$pop_sample_hash{$pop_in_panel}}, $sample;
+	}
+	return \%pop_sample_hash;
+}	
 
-  my $fh;
-  open($fh, "<", $panel_file);
-  while (<$fh>) {
-    chomp;
-    my $sample_line = $_;
-    my ($sample, $pop_in_panel) = split(/\t/, $sample_line);
-    #add unless it looks like the header
-    $sample_pop_hash{$sample} = $pop_in_panel unless $sample eq "sample";
-    $pops{$pop_in_panel} = 1 unless $sample eq "sample";
-  }
-}
+sub print_hash {
+	my ($hash, $p) = @_;
+	
+	my $out_h;
+	my @pops;
+	my %total_cnt_all_pops;
+	my %alt_cnt_all_pops;
+	
+	$region =~ s/:/\./;
+	#my $outfile = "$out_dir/calculated_fra.process$$" . "." . $region . "." . $p;
+  my $outfile = $out_file ? $out_file : "$out_dir/calculated_fra.process" . "." . $region . "." . $p.".txt";
+	$outfile =~ s/,/_/g;
+	$outfile =~ s/\s+//;
+	open ($out_h, ">", $outfile) || die("Cannot open output file $outfile");
+	
+	print $out_h "CHR\tPOS\tID\tREF\tALT\t";
+	
+	my %position_hash;
+	foreach my $site (keys %{$hash}) {
+		@pops = keys %{$hash->{$site}};
+		$total_cnt_all_pops{$site} = 0;
+		$alt_cnt_all_pops{$site} = 0;
+		foreach my $p ( keys %{$hash->{$site}} ) {
+			my @data = split(/\t/, $hash->{$site}->{$p});
+			$total_cnt_all_pops{$site} += $data[0];
+			if($data[1] =~ m/,/){#multiple alt alleles
+			  if($alt_cnt_all_pops{$site} eq 0){
+			    $alt_cnt_all_pops{$site} = $data[1];
+			  }
+			  else{
+				my @curr_totals = split /,/, $alt_cnt_all_pops{$site};
+				my @new_cnts = split /,/, $data[1];
+				for(my $i=0; $i<scalar(@curr_totals);$i++){
+				  $curr_totals[$i] = $curr_totals[$i] + $new_cnts[$i];
+				}
+				my $new_all_alt_cnt = join(",",@curr_totals);
+				$alt_cnt_all_pops{$site} = $new_all_alt_cnt;
+			  }
+			}
+			else{#not multiple alt alleles
+			  $alt_cnt_all_pops{$site} += $data[1];
+			}
+		}
+		my @meta_array = split(/\t/, $site);
+		my $pos = $meta_array[0] . "." . $meta_array[1];
+		$position_hash{$pos} = $site;
+	}	
+	
+	my @sorted_positions = sort {$a<=>$b} keys %position_hash;
+	
+	if ( $p eq "all" ) {
+		my @pop_header;
+		push @pop_header, "ALL_POP_TOTAL_CNT", "ALL_POP_ALT_CNT", "ALL_POP_FRQ";
+		foreach my $pop ( @pops ) {
+			push @pop_header, $pop . "_TOTAL_CNT";
+			
+			push @pop_header, $pop . "_ALT_CNT";
+			push @pop_header, $pop . "_FRQ";
+		}
+				
+		print $out_h join ("\t",@pop_header) . "\n"; 		
+		
+		foreach my $site_pos (@sorted_positions) {
+			my $site = $position_hash{$site_pos};		
+			print $out_h "$site\t";
+			print $out_h $total_cnt_all_pops{$site} . "\t" . $alt_cnt_all_pops{$site} . "\t";
+			my $alt_afs_all_pops;
+			if($alt_cnt_all_pops{$site} =~ m/,/){
+			  #handle multi-allelic site
+			  my @alt_cnts = split /,/, $alt_cnt_all_pops{$site};
+			  my @alt_afs;
+			  foreach my $alt_cnt (@alt_cnts){
+				my $alt_af = sprintf "%.2f", $alt_cnt/$total_cnt_all_pops{$site};
+				push @alt_afs, $alt_af;
+			  }
+			  $alt_afs_all_pops = join(',',@alt_afs);
+			}
+			else{
+				$alt_afs_all_pops = sprintf "%.2f", $alt_cnt_all_pops{$site}/$total_cnt_all_pops{$site};
+			}
+			print $out_h $alt_afs_all_pops;
+			print $out_h "\t";
+			my @numbers;
+			foreach my $pop_key ( keys %{$hash->{$site}} ) {
+				push @numbers, $hash->{$site}->{$pop_key};
+			}
+			print $out_h join ("\t", @numbers) . "\n";
+		}
+	}
+	else {
+		my @user_pops = split(/,/, $p);	
+		my @header;
+		foreach my $user_p ( @user_pops) {
+			$user_p =~ s/^\s+|\s+$//;
+			push @header, $user_p . "_TOTAL_CNT";
+			push @header, $user_p . "_ALT_CNT";
+			push @header, $user_p . "_FRQ";
+		}	
+		
+		print $out_h join ("\t", @header) . "\n";
+		
+		foreach my $site_pos (@sorted_positions) {
+			my $site = $position_hash{$site_pos};	
+			print $out_h "$site\t";
+			my @numbers;
+			foreach my $pop_key (@user_pops) {  ### this way the header population will match the numbers
+				#print "pop is $pop_key\n";
+				push @numbers, $hash->{$site}->{$pop_key};
+			}
+			print $out_h join ("\t", @numbers) . "\n";
+		}
+	}
+	print STDERR $outfile."\n";
+}		
+
 
 =pod
 
@@ -233,10 +364,10 @@ vcf file can be uncompressed and un-indexed.
 
 =head1 EXAMPLE lines from a sample panel file. Only the first 2 columns are essential.
 
-	HG00096	GBR	EUR
-	HG00097	GBR	EUR
-	HG00099	GBR	EUR
-	HG00100	GBR	EUR
+	HG00096	GBR	EUR	ILLUMINA
+	HG00097	GBR	EUR	ABI_SOLID
+	HG00099	GBR	EUR	ABI_SOLID
+	HG00100	GBR	EUR	ILLUMINA
 
 =head1 OUTPUT
 
@@ -257,7 +388,7 @@ output file are:
 
 perl $ZHENG_RP/bin/calculate_allele_frq_from_vcf.pl \
 -vcf /nfs/1000g-archive/vol1/ftp/phase1/analysis_results/integrated_call_sets/ALL.chr22.integrated_phase1_v3.20101123.snps_indels_svs.genotypes.vcf.gz \
--out_dir . \
+-out_dir ~ \
 -sample_panel /nfs/1000g-archive/vol1/ftp/phase1/analysis_results/integrated_call_sets/integrated_call_samples.20101123.ALL.panel \
 -region 22:17000000-17005000 \
 -pop CEU,FIN \
