@@ -69,6 +69,7 @@ use Carp;
 use Exporter;
 use Data::Dumper;
 use POSIX ":sys_wait_h";
+use Cwd qw(cwd);
 
 use vars qw/@ISA @EXPORT/;
 @ISA = qw/Exporter/;
@@ -131,6 +132,8 @@ sub validate_v32
     Args    : 
                 fh      .. Open file handle. If neither file nor fh is given, open in write mode.
                 file    .. The file name. If neither file nor fh is given, open in write mode.
+                tabix   .. full path where tabix is located
+                tmp_dir .. temporary directory where to download the files (when tabix is run)
                 region  .. Optional region to parse (requires tabix indexed VCF file)
                 silent  .. Unless set to 0, warning messages may be printed.
                 strict  .. Unless set to 0, the reader will die when the file violates the specification.
@@ -183,6 +186,8 @@ sub warn
 sub _open
 {
     my ($self,%args) = @_;
+    
+    my $tabix_bin = $$self{tabix};
 
     if ( !exists($$self{fh}) && !exists($$self{file}) ) 
     {
@@ -205,16 +210,21 @@ sub _open
         {
             if ( exists($args{region}) && defined($args{region}) )
             {
-                $cmd = "tabix $tabix_args |";
+                $cmd = "$tabix_bin $tabix_args |";
             }
             else { $cmd = "gunzip -c '$$self{file}' |"; } 
         }
         elsif ( $$self{file}=~m{^(?:http|ftp)://} )
         {
             if ( !exists($args{region}) ) { $tabix_args .= ' .'; }
-            $cmd = "tabix $tabix_args |";
+            $cmd = "$tabix_bin $tabix_args |";
         }
-        open($$self{fh},$cmd) or $self->throw("$cmd: $!");
+
+        my $cwd = cwd;
+        chdir($$self{tmp_dir});
+        my $success = open($$self{fh},$cmd) ;
+        chdir($cwd);
+        $self->throw("$cmd: $!") if(!$success);        
     }
 
     # Set the correct VCF version, but only when called for the first time
@@ -2642,11 +2652,12 @@ sub run_validation
 sub get_chromosomes
 {
     my ($self) = @_;
+    my $tabix_bin = $$self{tabix};
     if ( !$$self{file} ) { $self->throw(qq[The parameter "file" not set.\n]); }
-    my (@out) = `tabix -l '$$self{file}'`;
+    my (@out) = `$tabix_bin -l '$$self{file}'`;
     if ( $? ) 
     { 
-        my @has_tabix = `which tabix`;
+        my @has_tabix = `which $tabix_bin`;
         if ( !@has_tabix ) { $self->throw(qq[The command "tabix" not found, please add it to your PATH\n]); }
         $self->throw(qq[The command "tabix -l $$self{file}" exited with an error. Is the file tabix indexed?\n]); 
     }
