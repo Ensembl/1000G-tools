@@ -9,6 +9,7 @@ my ($vcf,
 	$user_input_pop_string,
 	$region,
 	$out_dir,
+  $user_out_file,
 	$tabix,
 	$no_tabix,
 	$help,
@@ -25,6 +26,7 @@ my ($vcf,
 	'pop=s'					=> \$user_input_pop_string,
 	'region=s'				=> \$region,
 	'out_dir:s'				=> \$out_dir,
+  'out_file:s'      => \$user_out_file,
 	'tabix=s'				=> \$tabix,
 	'no_tabix!'				=> \$no_tabix,
 	'help!'					=> \$help,
@@ -38,7 +40,13 @@ check_and_process_input();
 
 #input and output files
 open(VCF, $vcf_cmd." |") or die "Failed to open $vcf_cmd $!\n";
-my $outfile = "$out_dir/afc.".($region =~ s/:/./r).".proc$$.tsv";
+my $outfile;
+if($user_out_file){
+  $outfile = $user_out_file;
+}
+else{
+  $outfile = "$out_dir/afc.".($region =~ s/:/./r).".proc$$.tsv";
+}
 open(OUT, ">", $outfile) or die "Cannot open $outfile.\n";
 
 #print header
