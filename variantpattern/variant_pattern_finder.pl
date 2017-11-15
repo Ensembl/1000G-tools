@@ -43,6 +43,7 @@ my (	$file,
 		$help,
 		$cache,
 		$cache_dir,
+    $tabix,
 		$outfile,
 );
 
@@ -58,6 +59,7 @@ my $user = 'anonymous';
 	'host=s'		=>\$host,
 	'user=s'		=>\$user,
 	'vcf=s'			=>\$file,
+  'tabix=s'		=>\$tabix,
 	'region=s'		=>\$region,
 	'sample_panel_file=s'		=>\$sample_panel,
 	'output_dir=s'	=>\$output_dir,
@@ -99,7 +101,7 @@ open(HEADER, ">", $header) || die("Cannot open output header file $header");
 
 my $total_sample_cnt = parse_sample_file($sample_panel);
 
-my $vcf	= Vcf->new(file=>$file, region=>$region, print_header=>1); #print_header=>1 allows print sample name rather than column index
+my $vcf	= Vcf->new(file=>$file, region=>$region, print_header=>1, tabix=>$tabix, tmp_dir=>$output_dir); #print_header=>1 allows print sample name rather than column index
 $vcf->parse_header();
 
 while (my $x=$vcf->next_data_hash()) {
