@@ -45,6 +45,7 @@ my $output_dir;
 my $help;
 my $max_maf = 1;
 my $min_maf = 0;
+my $biallelic_only;
 my $base_format = 'number';
 
 GetOptions('population=s' => \@populations,
@@ -58,12 +59,16 @@ GetOptions('population=s' => \@populations,
             'help!' => \$help,
             'max_maf=s' => \$max_maf,
             'min_maf=s' => \$min_maf,
+						'biallelic_only' => \$biallelic_only,
             'base_format=s' => \$base_format,
             'tools_dir=s'   => \$tools_dir,
             );
 
 if ($help) {
     exec('perldoc', $0);
+}
+if($biallelic_only){
+	print "Biallelic only has been set\n";
 }
 
 die("required arguments: vcf, sample_panel_file, region, population") if (! $vcf || ! $sample_panel || ! $region || ! @populations);
@@ -147,6 +152,8 @@ sub get_markers_genotypes {
         $found_chromosome = 1;
         next LINE if (defined $region_start && $position < $region_start);
         last LINE if (defined $region_end && $position > $region_end);
+
+				next LINE if($biallelic_only && (scalar(split(/,/, $alt_alleles)) > 1));#if only interested in biallelic, skip lines with mulitple alts
 
         my @allele_codes = map {$base_codes{$_} || 0} $ref_allele, (split(/,/, $alt_alleles));
         #my @allele_codes = map {($number_format ? $base_codes{$_} : $_) || 0} $ref_allele, (split(/,/, $alt_alleles));
@@ -322,6 +329,7 @@ sub get_individuals {
         -max_maf            Only include variations with a minor allele_frequency less than or equal to this value
         -base_format        Either 'letter' or 'number'. Genotypes in the ped file can be coded either ACGT or 1-4
                             where 1=A, 2=C, 3=G, T=4.  Default is 'number'.
+	-biallelic_only	 Restricts script to only consider sites that are biallelic in the input VCF. Multiallelic sites in the input VCF are ignored and not included in output.
 	-help		    Print out help menu
 			
 =head1	OUTPUT FILES
