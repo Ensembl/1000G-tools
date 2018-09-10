@@ -59,7 +59,7 @@ GetOptions('population=s' => \@populations,
             'help!' => \$help,
             'max_maf=s' => \$max_maf,
             'min_maf=s' => \$min_maf,
-						'biallelic_only' => \$biallelic_only,
+						'biallelic_only=s' => \$biallelic_only,#-biallelic_only=1 to set only biallelic output, 0 or no flag will output all sites 
             'base_format=s' => \$base_format,
             'tools_dir=s'   => \$tools_dir,
             );
