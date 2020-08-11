@@ -52,11 +52,13 @@ my $print_all = 0;
 my $expanded_view = 0;
 my $verbose = 0;
 my $host = 'ensembldb.ensembl.org';
+my $port = '3306';
 my $user = 'anonymous';
 
 
 &GetOptions( 
 	'host=s'		=>\$host,
+	'port=s'		=>\$port,
 	'user=s'		=>\$user,
 	'vcf=s'			=>\$file,
   'tabix=s'		=>\$tabix,
@@ -369,7 +371,7 @@ sub predict_snp_func {
 		
 	#### get Ensembl API registry ####
 	my $reg = 'Bio::EnsEMBL::Registry';
-	$reg->load_registry_from_db(-host =>$host,-user =>$user);
+	$reg->load_registry_from_db(-host =>$host,-port =>$port,-user =>$user);
 	
 	my $vfa	= $reg->get_adaptor('human', 'variation', 'variationfeature');
 	my $sa	= $reg->get_adaptor('human', 'core', 'slice');
