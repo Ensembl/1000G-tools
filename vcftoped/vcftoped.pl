@@ -21,7 +21,7 @@
 
 =cut
 
-# This was obtained from ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/browser/vcf_to_ped_converter/version_1.1/vcf_to_ped_convert.pl
+# This was obtained from http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/browser/vcf_to_ped_converter/version_1.1/vcf_to_ped_convert.pl
 
 
 use Getopt::Long;
@@ -82,7 +82,7 @@ my $is_compressed = $vcf =~ /\.b?gz(ip)?$/;
 if ($is_compressed) {
   $tabix ||= "$tools_dir/linuxbrew/bin/tabix";
 }
-die("remote vcf file must be compressed by bgzip") if (!$is_compressed && $vcf =~ /ftp:\/\//);
+die("remote vcf file must be compressed by bgzip") if (!$is_compressed && $vcf =~ /http:\/\//);
 
 my ($region_chromosome, $region_start, $region_end);
 if ($region =~ /^(\w+):(\d+)-(\d+)$/) {
@@ -249,7 +249,7 @@ sub get_individuals {
 
     my @sample_panel_lines;
 
-    if ($sample_panel =~ /ftp:\/\/([\w.]+)(\/\S+)/) {
+    if ($sample_panel =~ /http:\/\/([\w.]+)(\/\S+)/) {
         my $ftp_host = $1;
         my $path = $2;
 
@@ -340,4 +340,4 @@ sub get_individuals {
 
 =head1 EXAMPLE
 
-perl ~/ReseqTrack/scripts/variation_data/vcf_to_ped_converter.pl -vcf ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20110521/ALL.chr13.phase1_integrated_calls.20101123.snps_indels_svs.genotypes.vcf.gz -sample_panel_file ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20110521/phase1_integrated_calls.20101123.ALL.sample_panel -region 13:32889611-32973805 -population GBR -population FIN -min_maf 0.1
+perl ~/ReseqTrack/scripts/variation_data/vcf_to_ped_converter.pl -vcf http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20110521/ALL.chr13.phase1_integrated_calls.20101123.snps_indels_svs.genotypes.vcf.gz -sample_panel_file http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20110521/phase1_integrated_calls.20101123.ALL.sample_panel -region 13:32889611-32973805 -population GBR -population FIN -min_maf 0.1
