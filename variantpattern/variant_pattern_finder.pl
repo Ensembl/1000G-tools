@@ -244,7 +244,7 @@ sub parse_sample_file {
 	
 	my @sample_panel_lines;
 	my %total_sample_cnt_hash;
-	if ($sample_panel =~ /ftp:\/\/([\w.]+)(\/\S+)/) {
+	if ($sample_panel =~ /http:\/\/([\w.]+)(\/\S+)/) {
 		my $ftp_host = $1;
 		my $path = $2;
 		
@@ -608,7 +608,7 @@ sub vcf_to_ensembl {
 =head1 EXAMPLE
 
 perl ~/ReseqTrack/scripts/variation_data/variant_pattern_finder.pl \
--vcf ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20101123/interim_phase1_release/ALL.chr14.phase1.projectConsensus.genotypes.vcf.gz \
+-vcf http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20101123/interim_phase1_release/ALL.chr14.phase1.projectConsensus.genotypes.vcf.gz \
 -sample_panel_file /nfs/1000g-archive/vol1/ftp/release/20101123/interim_phase1_release/interim_phase1.20101123.ALL.panel \
 -region 14:106329408-106329468 \
 -verbose
@@ -629,7 +629,7 @@ perl ~/ReseqTrack/scripts/variation_data/variant_pattern_finder.pl \
 
 perl ~/ReseqTrack/scripts/variation_data/variant_pattern_finder.pl \
 -vcf /nfs/1000g-archive/vol1/ftp/release/20110521/ALL.chr14.phase1_integrated_calls.20101123.snps_indels_svs.genotypes.vcf.gz \
--sample_panel_file ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20110521/phase1_integrated_calls.20101123.ALL.panel \
+-sample_panel_file http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20110521/phase1_integrated_calls.20101123.ALL.panel \
 -region 14:106329408-106329468 \
 -verbose \
 -cache \

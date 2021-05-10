@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 #
 # Notes:
-#   * The AA files can be downloaded from ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/pilot_data/technical/reference/ancestral_alignments
+#   * The AA files can be downloaded from http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/pilot_data/technical/reference/ancestral_alignments
 #   * The program runs samtools, therefore the AA files must be gzipped (not b2zipped).
 #
 # support: pd3@sanger
@@ -29,7 +29,7 @@ sub error
         "About: This script fills ancestral alleles into INFO column of VCF files. It depends on samtools,\n",
         "   therefore the fasta sequence must be gzipped (not bgzipped!) and indexed by samtools faidx.\n",
         "   The AA files can be downloaded from\n",
-        "       ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/pilot_data/technical/reference/ancestral_alignments\n",
+        "       http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/pilot_data/technical/reference/ancestral_alignments\n",
         "   and processed as shown in the example below. This is because the sequences in the original files\n",
         "   are named as 'ANCESTOR_for_chromosome:NCBI36:1:1:247249719', but the underlying FaSplice.pm\n",
         "   requires names as 'chr1' or '1'.\n",
@@ -105,7 +105,7 @@ sub fill_aa
     my $vcf = Vcf->new(fh=>\*STDIN, assume_uppercase=>1);
     $vcf->parse_header();
     $vcf->add_header_line({key=>'INFO',ID=>'AA',Number=>1,Type=>'String',
-        Description=>'Ancestral Allele, ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/pilot_data/technical/reference/ancestral_alignments/README'});
+        Description=>'Ancestral Allele, http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/pilot_data/technical/reference/ancestral_alignments/README'});
     print $vcf->format_header();
 
     my %chr2fa = ();
