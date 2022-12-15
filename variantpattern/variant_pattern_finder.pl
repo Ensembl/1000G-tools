@@ -244,7 +244,7 @@ sub parse_sample_file {
 	
 	my @sample_panel_lines;
 	my %total_sample_cnt_hash;
-	if ($sample_panel =~ /http:\/\/([\w.]+)(\/\S+)/) {
+	if ($sample_panel =~ /https?:\/\/([\w.]+)(\/\S+)/) {
 		my $ftp_host = $1;
 		my $path = $2;
 		
