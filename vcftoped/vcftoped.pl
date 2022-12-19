@@ -82,7 +82,7 @@ my $is_compressed = $vcf =~ /\.b?gz(ip)?$/;
 if ($is_compressed) {
   $tabix ||= "$tools_dir/linuxbrew/bin/tabix";
 }
-die("remote vcf file must be compressed by bgzip") if (!$is_compressed && $vcf =~ /http:\/\//);
+die("remote vcf file must be compressed by bgzip") if (!$is_compressed && $vcf =~ /https?:\/\//);
 
 my ($region_chromosome, $region_start, $region_end);
 if ($region =~ /^(\w+):(\d+)-(\d+)$/) {
@@ -249,7 +249,7 @@ sub get_individuals {
 
     my @sample_panel_lines;
 
-    if ($sample_panel =~ /http:\/\/([\w.]+)(\/\S+)/) {
+    if ($sample_panel =~ /https?:\/\/([\w.]+)(\/\S+)/) {
         my $ftp_host = $1;
         my $path = $2;
 
